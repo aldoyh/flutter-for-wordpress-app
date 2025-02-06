@@ -1,7 +1,7 @@
 library;
 
 // Your wordpress website URL
-const String wordpressUrl = "https://flutterblog.crumet.com";
+const String wordpressUrl = "https://doy.tech";
 
 // Featured category ID (for Home Screen top section)
 const int featuredId = 2;

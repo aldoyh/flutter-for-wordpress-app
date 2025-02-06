@@ -23,7 +23,7 @@ class _SearchState extends State<Search> {
   Future<List<dynamic>>? _futureSearchedArticles;
   ScrollController? _controller;
   final TextEditingController _textFieldController =
-      new TextEditingController();
+      TextEditingController();
 
   int page = 1;
   bool _infiniteStop = false;

@@ -23,7 +23,7 @@ Widget articleBoxFeatured(
               child: Hero(
                 tag: heroId,
                 child: ClipRRect(
-                  borderRadius: new BorderRadius.circular(8.0),
+                  borderRadius: BorderRadius.circular(8.0),
                   child: Image.network(
                     article.image.toString(),
                     fit: BoxFit.cover,

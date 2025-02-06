@@ -1,4 +1,3 @@
-// ignore: file_names
 class Category {
   final int? id;
   final String? name;
