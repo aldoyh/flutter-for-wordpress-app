@@ -26,7 +26,7 @@ packages:
     source: hosted
     version: "2.1.1"
   cached_network_image:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: cached_network_image
       sha256: "28ea9690a8207179c319965c13cd8df184d5ee721ae2ce60f398ced1219cea1f"
@@ -214,6 +214,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.5.0"
+  flutter_staggered_grid_view:
+    dependency: "direct main"
+    description:
+      name: flutter_staggered_grid_view
+      sha256: "19e7abb550c96fbfeb546b23f3ff356ee7c59a019a651f8f102a4ba9b7349395"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.7.0"
   flutter_svg:
     dependency: transitive
     description:
@@ -328,6 +336,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.1"
+  infinite_scroll_pagination:
+    dependency: "direct main"
+    description:
+      name: infinite_scroll_pagination
+      sha256: "4047eb8191e8b33573690922a9e995af64c3949dc87efc844f936b039ea279df"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.1.0"
   intl:
     dependency: "direct main"
     description:
@@ -553,13 +569,21 @@ packages:
     source: hosted
     version: "2.1.8"
   provider:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: provider
       sha256: c8a055ee5ce3fd98d6fc872478b03823ffdb448699c6ebdbbc71d59b596fd48c
       url: "https://pub.dev"
     source: hosted
     version: "6.1.2"
+  pull_to_refresh:
+    dependency: "direct main"
+    description:
+      name: pull_to_refresh
+      sha256: bbadd5a931837b57739cf08736bea63167e284e71fb23b218c8c9a6e042aad12
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
   quiver:
     dependency: transitive
     description:
@@ -648,11 +672,27 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.1"
+  shimmer:
+    dependency: "direct main"
+    description:
+      name: shimmer
+      sha256: "5f88c883a22e9f9f299e5ba0e4f7e6054857224976a5d9f839d4ebdc94a14ac9"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.0"
   sky_engine:
     dependency: transitive
     description: flutter
     source: sdk
     version: "0.0.0"
+  sliver_tools:
+    dependency: transitive
+    description:
+      name: sliver_tools
+      sha256: eae28220badfb9d0559207badcbbc9ad5331aac829a88cb0964d330d2a4636a6
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.12"
   source_span:
     dependency: transitive
     description:

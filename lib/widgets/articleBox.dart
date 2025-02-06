@@ -24,8 +24,8 @@ Widget articleBox(BuildContext context, Article article, String heroId) {
                     child: Column(
                       children: <Widget>[
                         Html(
-                          data: article.title!.length > 70
-                              ? "<h2>${article.title!.substring(0, 70)}...</h2>"
+                          data: article.title.length > 70
+                              ? "<h2>${article.title.substring(0, 70)}...</h2>"
                               : "<h2>${article.title}</h2>",
                           style: {
                             "h2": Style(

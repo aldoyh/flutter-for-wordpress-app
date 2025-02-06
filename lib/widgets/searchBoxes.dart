@@ -1,49 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_wordpress_app/common/constants.dart';
-import 'package:flutter_wordpress_app/pages/category_articles.dart';
 
-Widget searchBoxes(BuildContext context) {
-  return GridView.count(
-    padding: EdgeInsets.all(16),
-    shrinkWrap: true,
-    physics: ScrollPhysics(),
-    crossAxisCount: 3,
-    children: List.generate(customCategories.length, (index) {
-      var cat = customCategories[index];
-      var name = cat[0];
-      var image = cat[1];
-      var catId = cat[2];
+class SearchBox extends StatelessWidget {
+  final String text;
+  final String icon;
+  final VoidCallback onPressed;
 
-      return Card(
-        child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => CategoryArticles(catId, name),
-              ),
-            );
-          },
-          child: Container(
-            padding: EdgeInsets.fromLTRB(8, 16, 8, 8),
-            child: Column(
-              children: <Widget>[
-                SizedBox(width: 100, height: 45, child: Image.asset(image)),
-                Spacer(),
-                Text(
-                  name,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    height: 1.2,
-                    fontWeight: FontWeight.w500,
-                  ),
-                )
-              ],
+  const SearchBox({
+    super.key,
+    required this.text,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      child: Container(
+        margin: const EdgeInsets.all(8.0),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(Constants.cardBorderRadius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
+          ],
         ),
-      );
-    }),
-  );
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              icon,
+              height: 48,
+              width: 48,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              text,
+              style: Theme.of(context).textTheme.titleSmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SearchBoxGrid extends StatelessWidget {
+  const SearchBoxGrid({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(8.0),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.2,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+      ),
+      itemCount: Constants.customCategories.length,
+      itemBuilder: (context, index) {
+        final category = Constants.customCategories[index];
+        return SearchBox(
+          text: category['name'] as String,
+          icon: category['icon'] as String,
+          onPressed: () {
+            // Navigate to category
+            // TODO: Implement category navigation
+          },
+        );
+      },
+    );
+  }
 }

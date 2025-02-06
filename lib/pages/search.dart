@@ -4,9 +4,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_wordpress_app/common/constants.dart';
-import 'package:flutter_wordpress_app/models/Article.dart';
-import 'package:flutter_wordpress_app/pages/single_article.dart';
-import 'package:flutter_wordpress_app/widgets/articleBox.dart';
+import 'package:flutter_wordpress_app/models/post.dart';
+import 'package:flutter_wordpress_app/widgets/post_card.dart';
 import 'package:flutter_wordpress_app/widgets/searchBoxes.dart';
 import 'package:http/http.dart' as http;
 
@@ -18,215 +17,137 @@ class Search extends StatefulWidget {
 }
 
 class _SearchState extends State<Search> {
-  String _searchText = "";
-  List<dynamic> searchedArticles = [];
-  Future<List<dynamic>>? _futureSearchedArticles;
-  ScrollController? _controller;
-  final TextEditingController _textFieldController =
-      TextEditingController();
-
-  int page = 1;
-  bool _infiniteStop = false;
+  final TextEditingController _searchController = TextEditingController();
+  List<Post> _searchResults = [];
+  bool _isLoading = false;
+  String? _error;
+  Timer? _debounce;
 
   @override
-  void initState() {
-    super.initState();
-    _futureSearchedArticles =
-        fetchSearchedArticles(_searchText, _searchText == "", page, false);
-    _controller =
-        ScrollController(initialScrollOffset: 0.0, keepScrollOffset: true);
-    _controller!.addListener(_scrollListener);
-    _infiniteStop = false;
+  void dispose() {
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
   }
 
-  Future<List<dynamic>> fetchSearchedArticles(
-      String searchText, bool empty, int page, bool scrollUpdate) async {
+  Future<void> _performSearch(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _error = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
     try {
-      if (empty) {
-        return searchedArticles;
-      }
+      final url = Uri.parse(
+        "${Constants.apiEndpoint}/posts?search=$query&per_page=${Constants.searchPostsPerPage}&_embed=true",
+      );
 
-      var response = await http.get(Uri.parse(
-          "$wordpressUrl/wp-json/wp/v2/posts?search=$searchText&page=$page&per_page=10&_fields=id,date,title,content,custom,link"));
+      final response = await http.get(url);
 
-      if (mounted) {
-        if (response.statusCode == 200) {
-          setState(() {
-            if (scrollUpdate) {
-              searchedArticles.addAll(json
-                  .decode(response.body)
-                  .map((m) => Article.fromJson(m))
-                  .toList());
-            } else {
-              searchedArticles = json
-                  .decode(response.body)
-                  .map((m) => Article.fromJson(m))
-                  .toList();
-            }
-
-            if (searchedArticles.length % 10 != 0) {
-              _infiniteStop = true;
-            }
-          });
-
-          return searchedArticles;
-        }
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = json.decode(response.body);
         setState(() {
-          _infiniteStop = true;
+          _searchResults = jsonData.map((json) => Post.fromJson(json)).toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = Constants.generalError;
+          _isLoading = false;
         });
       }
     } on SocketException {
-      throw 'No Internet connection';
-    }
-    return searchedArticles;
-  }
-
-  _scrollListener() {
-    var isEnd = _controller!.offset >= _controller!.position.maxScrollExtent &&
-        !_controller!.position.outOfRange;
-    if (isEnd) {
       setState(() {
-        page += 1;
-        _futureSearchedArticles =
-            fetchSearchedArticles(_searchText, _searchText == "", page, true);
+        _error = Constants.noInternetError;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
       });
     }
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-    _textFieldController.dispose();
-    _controller!.dispose();
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _performSearch(query);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
-        title: Text('Search',
-            style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                fontFamily: 'Poppins')),
-        elevation: 5,
-        backgroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        controller: _controller,
-        scrollDirection: Axis.vertical,
-        child: Column(
-          children: <Widget>[
-            Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Card(
-                elevation: 6,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
-                  child: TextField(
-                      controller: _textFieldController,
-                      decoration: InputDecoration(
-                        labelText: 'Search news',
-                        suffixIcon: _searchText == ""
-                            ? Icon(Icons.search)
-                            : IconButton(
-                                icon: Icon(Icons.close),
-                                onPressed: () {
-                                  _textFieldController.clear();
-                                  setState(() {
-                                    _searchText = "";
-                                    _futureSearchedArticles =
-                                        fetchSearchedArticles(_searchText,
-                                            _searchText == "", page, false);
-                                  });
-                                },
-                              ),
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                      ),
-                      onChanged: (text) {
-                        setState(() {
-                          _searchText = text;
-                          page = 1;
-                          _futureSearchedArticles = fetchSearchedArticles(
-                              _searchText, _searchText == "", page, false);
-                        });
-                      }),
-                ),
-              ),
-            ),
-            searchPosts(_futureSearchedArticles as Future<List<dynamic>>)
-          ],
+        title: TextField(
+          controller: _searchController,
+          onChanged: _onSearchChanged,
+          decoration: InputDecoration(
+            hintText: 'Search articles...',
+            border: InputBorder.none,
+            hintStyle:
+                TextStyle(color: theme.colorScheme.onSurface.withAlpha(150)),
+          ),
+          style: theme.textTheme.titleMedium,
         ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: _searchController.text.isEmpty
+                ? const SearchBoxGrid() // Using the SearchBoxGrid widget for categories
+                : _buildSearchResults(),
+          ),
+        ],
       ),
     );
   }
 
-  Widget searchPosts(Future<List<dynamic>> articles) {
-    return FutureBuilder<List<dynamic>>(
-      future: articles,
-      builder: (context, articleSnapshot) {
-        if (articleSnapshot.hasData) {
-          if (articleSnapshot.data!.isEmpty) {
-            return Column(
-              children: <Widget>[
-                searchBoxes(context),
-              ],
-            );
-          }
-          return Column(
-            children: <Widget>[
-              Column(
-                  children: articleSnapshot.data!.map((item) {
-                final heroId = "${item.id}-searched";
-                return InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SingleArticle(item, heroId),
-                      ),
-                    );
-                  },
-                  child: articleBox(context, item, heroId),
-                );
-              }).toList()),
-              !_infiniteStop
-                  ? Container(
-                      alignment: Alignment.center,
-                      height: 30,
-                    )
-                  : Container()
-            ],
-          );
-        } else if (articleSnapshot.hasError) {
-          return Container(
-            alignment: Alignment.center,
-            margin: EdgeInsets.fromLTRB(0, 60, 0, 0),
-            width: MediaQuery.of(context).size.width,
-            height: MediaQuery.of(context).size.height,
-            child: Column(
-              children: <Widget>[
-                Image.asset(
-                  "assets/no-internet.png",
-                  width: 250,
-                ),
-                Text("No Internet Connection."),
-                TextButton.icon(
-                  icon: Icon(Icons.refresh),
-                  label: Text("Reload"),
-                  onPressed: () {
-                    _futureSearchedArticles = fetchSearchedArticles(
-                        _searchText, _searchText == "", page, false);
-                  },
-                )
-              ],
+  Widget _buildSearchResults() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(_error!),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _performSearch(_searchController.text),
+              child: const Text('Retry'),
             ),
-          );
-        }
-        return Container(alignment: Alignment.center, width: 300, height: 150);
+          ],
+        ),
+      );
+    }
+
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Text(
+          Constants.noPostsFound,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(8),
+      itemCount: _searchResults.length,
+      itemBuilder: (context, index) {
+        return PostCard(post: _searchResults[index]);
       },
     );
   }

@@ -41,6 +41,7 @@ class _CategoryArticlesState extends State<CategoryArticles> {
 
   Future<List<dynamic>> fetchCategoryArticles(int page) async {
     try {
+      var wordpressUrl = Constants.wordpressUrl;
       var response = await http.get(Uri.parse(
           "$wordpressUrl/wp-json/wp/v2/posts?categories[]=${widget.id}&page=$page&per_page=10&_fields=id,date,title,content,custom,link"));
 

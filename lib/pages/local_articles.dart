@@ -1,11 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_wordpress_app/common/constants.dart';
-import 'package:flutter_wordpress_app/models/Article.dart';
-import 'package:flutter_wordpress_app/pages/single_Article.dart';
-import 'package:flutter_wordpress_app/widgets/articleBox.dart';
+import 'package:flutter_wordpress_app/models/post.dart';
+import 'package:flutter_wordpress_app/widgets/post_card.dart';
 import 'package:http/http.dart' as http;
 
 class LocalArticles extends StatefulWidget {
@@ -16,136 +16,138 @@ class LocalArticles extends StatefulWidget {
 }
 
 class _LocalArticlesState extends State<LocalArticles> {
-  List<dynamic> articles = [];
-  Future<List<dynamic>>? _futureArticles;
-
-  ScrollController? _controller;
-  int page = 1;
-  bool _infiniteStop = false;
+  List<Post> _articles = [];
+  bool _isLoading = true;
+  String? _error;
+  final ScrollController _scrollController = ScrollController();
+  int _page = 1;
+  bool _hasMore = true;
 
   @override
   void initState() {
     super.initState();
-    _futureArticles = fetchLocalArticles(1);
-    _controller =
-        ScrollController(initialScrollOffset: 0.0, keepScrollOffset: true);
-    _controller!.addListener(_scrollListener);
-    _infiniteStop = false;
+    _loadArticles();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     super.dispose();
-    _controller!.dispose();
   }
 
-  Future<List<dynamic>> fetchLocalArticles(int page) async {
-    try {
-      http.Response response = await http.get(Uri.parse(
-          "$wordpressUrl/wp-json/wp/v2/posts/?categories[]=$page2CategoryId&page=$page&per_page=10&_fields=id,date,title,content,custom,link"));
-      if (mounted) {
-        if (response.statusCode == 200) {
-          setState(() {
-            articles.addAll(json
-                .decode(response.body)
-                .map((m) => Article.fromJson(m))
-                .toList());
-            if (articles.length % 10 != 0) {
-              _infiniteStop = true;
-            }
-          });
+  Future<void> _loadArticles({bool refresh = false}) async {
+    if (refresh) {
+      setState(() {
+        _page = 1;
+        _articles = [];
+        _hasMore = true;
+        _error = null;
+      });
+    }
 
-          return articles;
-        }
+    if (!_hasMore) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await http.get(
+        Uri.parse(
+          "${Constants.apiEndpoint}/posts?categories=${Constants.page2CategoryId}&page=$_page&per_page=${Constants.defaultPostsPerPage}&_embed=true",
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = json.decode(response.body);
+        final newArticles = jsonData.map((json) => Post.fromJson(json)).toList();
+
         setState(() {
-          _infiniteStop = true;
+          _articles.addAll(newArticles);
+          _isLoading = false;
+          _error = null;
+          _page++;
+          _hasMore = newArticles.length >= Constants.defaultPostsPerPage;
+        });
+      } else {
+        setState(() {
+          _error = Constants.generalError;
+          _isLoading = false;
         });
       }
     } on SocketException {
-      throw 'No Internet connection';
+      setState(() {
+        _error = Constants.noInternetError;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
     }
-
-    return articles;
   }
 
-  _scrollListener() {
-    var isEnd = _controller!.offset >= _controller!.position.maxScrollExtent &&
-        !_controller!.position.outOfRange;
-    if (isEnd) {
-      setState(() {
-        page += 1;
-        _futureArticles = fetchLocalArticles(page);
-      });
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoading && _hasMore) {
+        _loadArticles();
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        centerTitle: true,
         title: Text(
-          page2CategoryName,
-          style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-              fontFamily: 'Poppins'),
+          Constants.page2CategoryName,
+          style: Theme.of(context).textTheme.titleLarge,
         ),
-        elevation: 5,
-        backgroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-          scrollDirection: Axis.vertical,
-          controller: _controller,
-          child: Column(
-            children: <Widget>[
-              categoryPosts(_futureArticles as Future<List<dynamic>>),
-            ],
-          )),
+      body: RefreshIndicator(
+        onRefresh: () => _loadArticles(refresh: true),
+        child: _error != null && _articles.isEmpty
+            ? _buildErrorWidget()
+            : _buildArticlesList(),
+      ),
     );
   }
 
-  Widget categoryPosts(Future<List<dynamic>> futureArticles) {
-    return FutureBuilder<List<dynamic>>(
-      future: futureArticles,
-      builder: (context, articleSnapshot) {
-        if (articleSnapshot.hasData) {
-          if (articleSnapshot.data!.isEmpty) return Container();
-          return Column(
-            children: <Widget>[
-              Column(
-                  children: articleSnapshot.data!.map((item) {
-                final heroId = "${item.id}-latest";
-                return InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SingleArticle(item, heroId),
-                      ),
-                    );
-                  },
-                  child: articleBox(context, item, heroId),
-                );
-              }).toList()),
-              !_infiniteStop
-                  ? Container(
-                      alignment: Alignment.center,
-                      height: 30,
-                    )
-                  : Container()
-            ],
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(_error!),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => _loadArticles(refresh: true),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArticlesList() {
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(8),
+      itemCount: _articles.length + (_hasMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index < _articles.length) {
+          return PostCard(post: _articles[index]);
+        } else if (_hasMore) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
           );
-        } else if (articleSnapshot.hasError) {
-          return Container();
+        } else {
+          return const SizedBox.shrink();
         }
-        return Container(
-          alignment: Alignment.center,
-          height: 400,
-          width: MediaQuery.of(context).size.width - 30,
-        );
       },
     );
   }
